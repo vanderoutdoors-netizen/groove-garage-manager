@@ -79,6 +79,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .mkt-table td{padding:8px;border-bottom:1px solid var(--br);}
 .mkt-table tr:last-child td{border-bottom:none;}
 .mkt-table .rev{font-weight:800;color:var(--ok);}
+.v-sub{font-size:.7rem;color:var(--t2);font-weight:400;}
+.wn-row{display:flex;gap:8px;}
+.wn-row>div{flex:1;}
+.wn-sel{border:2px solid var(--bm);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:.85rem;background:var(--bl);color:var(--bd);font-weight:700;}
+.wn-log{font-size:.78rem;border-bottom:1px solid var(--br);padding:5px 0;display:flex;justify-content:space-between;gap:8px;}
 
 /* ── FORMS ── */
 label{display:block;font-size:.75rem;font-weight:600;color:var(--t2);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px;}
@@ -297,6 +302,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bm);box-
         <tbody id="mktCompBody"></tbody>
       </table>
     </div>
+    <div class="card">
+      <div class="card-title" id="venue-title">🏟 By Venue</div>
+      <table class="mkt-table">
+        <thead><tr><th>Venue</th><th>Total</th><th>Avg / event</th></tr></thead>
+        <tbody id="venueBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -385,6 +397,28 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bm);box-
       <button class="btn btn-success" id="submitBtn" onclick="submitSale()" disabled>✓ Complete Sale</button>
       <button class="btn btn-ghost btn-sm" onclick="clearCart()">🗑 Clear</button>
     </div>
+  </div>
+
+  <div class="card" id="wnCard">
+    <div class="card-title">📺 Whatnot Entry <span style="font-weight:400;font-size:.75rem;color:var(--t2);">one CD at a time</span></div>
+    <div class="wn-row">
+      <div><label>Show</label><input type="text" id="wnEvent" placeholder="Whatnot - Oct 14" oninput="wnSaveSettings()"/></div>
+      <div style="flex:0 0 42%;"><label>Show date</label><input type="date" id="wnDate" oninput="wnSaveSettings()"/></div>
+    </div>
+    <label>CD</label>
+    <input type="text" id="wnSearch" placeholder="Artist, title, or UID" autocomplete="off" oninput="wnFind()"/>
+    <div id="wnResults"></div>
+    <div id="wnPicked"></div>
+    <div class="wn-row">
+      <div><label>Winning bid $</label><input type="text" id="wnPrice" inputmode="decimal" placeholder="7"
+        onkeydown="if(event.key==='Enter'){wnAdd();event.preventDefault();}"/></div>
+      <div><label>Lot #</label><input type="text" id="wnLot" inputmode="numeric" placeholder="1"
+        onkeydown="if(event.key==='Enter'){wnAdd();event.preventDefault();}"/></div>
+    </div>
+    <div id="wnErr" style="color:var(--er);font-size:.8rem;font-weight:700;min-height:1em;margin-top:4px;"></div>
+    <button class="btn btn-success" onclick="wnAdd()">✓ Add Whatnot Sale</button>
+    <div id="wnSummary" style="font-size:.8rem;color:var(--t2);margin-top:10px;"></div>
+    <div id="wnLog"></div>
   </div>
 
   <div class="card">
@@ -530,7 +564,7 @@ function showPage(id,btn){
   btn.classList.add('active');
   if(id==='dash') loadDash();
   if(id==='mkt')  loadMarkets();
-  if(id==='sale') autoFillEvent();
+  if(id==='sale'){ autoFillEvent(); wnInit(); }
 }
 
 function openScanner(){
@@ -684,6 +718,18 @@ async function loadAnnual(){
           </tr>`).join('')
       : '<tr><td colspan="3" class="empty-state">No sales data for '+data.year+'</td></tr>';
 
+    // Cumulative by venue, with per-event averages
+    document.getElementById('venue-title').textContent='🏟 By Venue — '+data.year;
+    const vs=data.venues||[];
+    document.getElementById('venueBody').innerHTML=vs.length
+      ? vs.map(v=>`
+          <tr>
+            <td><strong>${esc(v.venue)}</strong><div class="v-sub">${v.events} event${v.events!==1?'s':''}</div></td>
+            <td><span class="rev">$${Math.round(v.revenue)}</span><div class="v-sub">${v.units} CDs</div></td>
+            <td><span class="rev">$${Math.round(v.avgRevenue)}</span><div class="v-sub">${v.avgUnits} CDs</div></td>
+          </tr>`).join('')
+      : '<tr><td colspan="3" class="empty-state">No sales data for '+data.year+'</td></tr>';
+
   }catch(e){ showAlert('dashAlert','Annual load error: '+e,'error'); }
 }
 
@@ -740,15 +786,102 @@ function submitQuick(){
   window.scrollTo(0,0);
 }
 
+// ── WHATNOT ENTRY ──────────────────────────────────────────────
+let wnPick=null;
+let wnEntries=(()=>{ try{ return JSON.parse(localStorage.getItem('gg_wn_log')||'[]'); }catch(e){ return []; } })();
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function wnSaveSettings(){
+  try{ localStorage.setItem('gg_wn_set',JSON.stringify({event:document.getElementById('wnEvent').value,date:document.getElementById('wnDate').value})); }catch(e){}
+}
+function wnInit(){
+  let set={}; try{ set=JSON.parse(localStorage.getItem('gg_wn_set')||'{}'); }catch(e){}
+  const ev=document.getElementById('wnEvent'), dt=document.getElementById('wnDate');
+  if(!ev.value) ev.value=set.event||(activeMarket&&/whatnot/i.test(activeMarket.venueName)?activeMarket.venueName:'');
+  if(!dt.value) dt.value=set.date||todayStr();
+  wnRenderLog();
+}
+function wnFind(){
+  const v=document.getElementById('wnSearch').value.trim();
+  const box=document.getElementById('wnResults');
+  if(!invCache){ box.innerHTML='<div class="empty-state">Inventory still loading…</div>'; return; }
+  if(v.length<2){ box.innerHTML=''; return; }
+  const hits=localFind(v).slice(0,6);
+  box.innerHTML=hits.length?hits.map(r=>`
+    <div class="result-item" onclick="wnChoose('${esc(r.uid)}')">
+      <span class="r-uid">${esc(r.uid)}</span>
+      <div class="r-info"><div class="r-artist">${esc(r.artist)}</div><div class="r-title">${esc(r.title)}${r.doubleCD==='Yes'?' · 2xCD':''}</div></div>
+      <div class="r-action">Pick</div>
+    </div>`).join(''):'<div style="font-size:.78rem;color:var(--t2);padding:4px 0;">No active match</div>';
+}
+function wnChoose(uid){
+  wnPick=(invCache||[]).find(r=>r.uid===uid)||null;
+  document.getElementById('wnResults').innerHTML='';
+  document.getElementById('wnSearch').value='';
+  document.getElementById('wnPicked').innerHTML=wnPick?'<div class="wn-sel">'+esc(wnPick.artist)+' · '+esc(wnPick.title)+' <span style="font-weight:400">('+esc(wnPick.uid)+')</span></div>':'';
+  document.getElementById('wnErr').textContent='';
+  document.getElementById('wnPrice').focus();
+}
+function wnAdd(){
+  const err=document.getElementById('wnErr');
+  const ev=document.getElementById('wnEvent').value.trim();
+  const dt=document.getElementById('wnDate').value;
+  const priceRaw=document.getElementById('wnPrice').value;
+  const price=money(parseFloat(String(priceRaw).replace(/[^0-9.]/g,'')));
+  const lot=document.getElementById('wnLot').value.trim();
+  if(!wnPick){ err.textContent='Pick the CD first'; document.getElementById('wnSearch').focus(); return; }
+  if(isNaN(price)||price<=0){ err.textContent='Enter the winning bid'; document.getElementById('wnPrice').focus(); return; }
+  if(!lot){ err.textContent='Enter the lot number'; document.getElementById('wnLot').focus(); return; }
+  if(!ev){ err.textContent='Enter the show name, like "Whatnot - Oct 14"'; document.getElementById('wnEvent').focus(); return; }
+  err.textContent='';
+  outbox.push({
+    clientSaleId:'CS-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
+    items:[{uid:wnPick.uid,quantity:1,salePrice:String(price),holiday:isHolidayTitle(wnPick.title)}],
+    event:ev, paymentMethod:'Whatnot', bundleId:'', saleDate:dt||'',
+    notes:'Whatnot lot #'+lot,
+  });
+  saveOutbox();
+  const k=invCache.findIndex(r=>r.uid===wnPick.uid); if(k>-1){ invCache.splice(k,1); saveInvCache(); }
+  wnEntries.unshift({lot,artist:wnPick.artist,title:wnPick.title,price,event:ev});
+  try{ localStorage.setItem('gg_wn_log',JSON.stringify(wnEntries.slice(0,300))); }catch(e){}
+  wnPick=null;
+  document.getElementById('wnPicked').innerHTML='';
+  document.getElementById('wnPrice').value='';
+  const n=parseInt(lot,10); document.getElementById('wnLot').value=isNaN(n)?'':String(n+1);
+  wnRenderLog(); renderSync(); flushOutbox();
+  document.getElementById('wnSearch').focus();
+}
+function wnRenderLog(){
+  const ev=document.getElementById('wnEvent').value.trim();
+  const mine=wnEntries.filter(e=>e.event===ev);
+  const tot=mine.reduce((s,e)=>s+e.price,0);
+  document.getElementById('wnSummary').innerHTML=mine.length
+    ? '<strong>'+mine.length+' CDs · '+fmt$(tot)+'</strong> entered for '+esc(ev)+(mine.length?' <a href="#" onclick="wnClearLog();return false;" style="color:var(--t2);">clear list</a>':'')
+    : '';
+  document.getElementById('wnLog').innerHTML=mine.slice(0,8).map(e=>`
+    <div class="wn-log"><span>#${esc(e.lot)} · ${esc(e.artist)} · ${esc(e.title)}</span><strong>${fmt$(e.price)}</strong></div>`).join('');
+}
+function wnClearLog(){
+  if(!confirm('Clear this on-screen list? Sales already entered stay saved.')) return;
+  const ev=document.getElementById('wnEvent').value.trim();
+  wnEntries=wnEntries.filter(e=>e.event!==ev);
+  try{ localStorage.setItem('gg_wn_log',JSON.stringify(wnEntries)); }catch(e){}
+  wnRenderLog();
+}
+
 // ── FILL IN LATER ──────────────────────────────────────────────
 async function loadPending(){
   const el=document.getElementById('pendList');
   el.innerHTML='<div class="empty-state">Loading…</div>';
   if(!invCache) await loadInvCache();
   try{
-    const list=await api('getPendingSales');
+    let list, offline=false;
+    try{ list=await api('getPendingSales'); try{ localStorage.setItem('gg_pend',JSON.stringify(list||[])); }catch(e){} }
+    catch(e){ offline=true; try{ list=JSON.parse(localStorage.getItem('gg_pend')||'[]'); }catch(_){ list=[]; } }
+    const queued={}; outbox.forEach(o=>{ if(o.type==='match') queued[o.txnId]=true; });
+    list=(list||[]).filter(p=>!queued[p.txnId]);
+    if(offline&&!list.length){ el.innerHTML='<div class="empty-state">No signal, and no saved list on this phone yet. Open this once with signal to save a copy.</div>'; return; }
     if(!list||!list.length){ el.innerHTML='<div class="empty-state">Nothing left to identify 🎉</div>'; return; }
-    el.innerHTML='<div style="font-size:.75rem;color:var(--t2);margin-bottom:8px;">'+list.length+' CD'+(list.length>1?'s':'')+' to identify. Newest first.</div>'+
+    el.innerHTML='<div style="font-size:.75rem;color:var(--t2);margin-bottom:8px;">'+list.length+' CD'+(list.length>1?'s':'')+' to identify. Newest first.'+(offline?' <strong>No signal: matches will save when you reconnect.</strong>':'')+'</div>'+
       list.slice().reverse().map(p=>`
       <div class="p-item" id="p-${esc(p.txnId)}">
         <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;">
@@ -771,17 +904,14 @@ function pendSearch(txnId,val,dbl){
       <div class="r-action">Match</div>
     </div>`).join(''):'<div style="font-size:.78rem;color:var(--t2);">No active match</div>';
 }
-async function pendAssign(txnId,uid){
+function pendAssign(txnId,uid){
   const card=document.getElementById('p-'+txnId);
-  card.style.opacity='.5';
-  try{
-    const r=await api('assignPending',{txnId,uid});
-    if(r&&r.success){
-      if(invCache){ const k=invCache.findIndex(x=>x.uid===uid); if(k>-1) invCache.splice(k,1); }
-      card.innerHTML='<div style="font-size:.82rem;color:var(--ok);font-weight:700;">✓ '+esc(r.artist)+' · '+esc(r.title)+'</div>';
-      card.style.opacity='1';
-    } else { card.style.opacity='1'; showAlert('saleAlert','Error: '+(r&&r.error||'unknown'),'error'); }
-  }catch(e){ card.style.opacity='1'; showAlert('saleAlert','Error: '+e,'error'); }
+  const cd=(invCache||[]).find(x=>x.uid===uid)||{artist:uid,title:''};
+  outbox.push({type:'match',txnId,uid,items:[{uid}]}); saveOutbox();
+  try{ const pl=JSON.parse(localStorage.getItem('gg_pend')||'[]').filter(p=>p.txnId!==txnId); localStorage.setItem('gg_pend',JSON.stringify(pl)); }catch(e){}
+  if(invCache){ const k=invCache.findIndex(x=>x.uid===uid); if(k>-1) invCache.splice(k,1); saveInvCache(); }
+  card.innerHTML='<div style="font-size:.82rem;color:var(--ok);font-weight:700;">✓ '+esc(cd.artist)+' · '+esc(cd.title)+'</div>';
+  renderSync(); flushOutbox();
 }
 
 function addSlim(){
@@ -1002,7 +1132,7 @@ function renderSync(){
   if(!outbox.length){ el.style.display='none'; return; }
   el.style.display='block';
   el.style.color=lastSyncErr?'var(--er)':'var(--wn)';
-  el.textContent=(lastSyncErr?'⚠️ ':'⏳ ')+outbox.length+' sale'+(outbox.length>1?'s':'')+' waiting to save'+(lastSyncErr?' (will retry: '+lastSyncErr+')':'…');
+  el.textContent=(lastSyncErr?'⚠️ ':'⏳ ')+outbox.length+' item'+(outbox.length>1?'s':'')+' waiting to save'+(lastSyncErr?' (will retry: '+lastSyncErr+')':'…');
 }
 async function flushOutbox(){
   if(flushing||!outbox.length) return;
@@ -1011,8 +1141,13 @@ async function flushOutbox(){
     while(outbox.length){
       const sale=outbox[0];
       let r;
-      try{ r=await api('recordSale',{data:sale}); }
+      try{ r = sale.type==='match' ? await api('assignPending',{txnId:sale.txnId,uid:sale.uid}) : await api('recordSale',{data:sale}); }
       catch(e){ lastSyncErr='no connection'; break; }
+      if(sale.type==='match' && r && !r.success && r.error){
+        // A match the sheet rejects (CD no longer active, placeholder gone) won't fix itself on retry
+        showAlert('saleAlert','Match not saved: '+r.error,'error');
+        outbox.shift(); saveOutbox(); continue;
+      }
       if(r&&r.success){
         const bad=(r.results||[]).filter(x=>!x.success);
         if(bad.length) showAlert('saleAlert','Saved, but check: '+bad.map(b=>b.uid+' '+b.error).join('; '),'error');
@@ -1032,7 +1167,7 @@ async function loadInvCache(){
     const r=await api('getActiveInventory');
     if(!r||!r.rows) return;
     const pendingUids=[];
-    outbox.forEach(s=>s.items.forEach(i=>pendingUids.push(i.uid)));
+    outbox.forEach(s=>(s.items||[]).forEach(i=>pendingUids.push(i.uid)));
     const rows=r.rows.map(a=>({uid:a[0],artist:a[1],title:a[2],genre:a[3],doubleCD:a[4],year:a[5],catalog:a[6],discogsId:a[7]}));
     // Don't re-show copies sold on this phone that haven't synced yet
     pendingUids.forEach(u=>{ const k=rows.findIndex(x=>x.uid===u); if(k>-1) rows.splice(k,1); });
@@ -1048,7 +1183,7 @@ function restoreInvCache(){
     const raw=JSON.parse(localStorage.getItem('gg_inv')||'null');
     if(!raw||!raw.length) return;
     const rows=raw.map(a=>({uid:a[0],artist:a[1],title:a[2],genre:a[3],doubleCD:a[4],year:a[5],catalog:a[6],discogsId:a[7]}));
-    outbox.forEach(s=>s.items.forEach(i=>{ const k=rows.findIndex(x=>x.uid===i.uid); if(k>-1) rows.splice(k,1); }));
+    outbox.forEach(s=>(s.items||[]).forEach(i=>{ const k=rows.findIndex(x=>x.uid===i.uid); if(k>-1) rows.splice(k,1); }));
     invCache=rows;
   }catch(e){}
 }
