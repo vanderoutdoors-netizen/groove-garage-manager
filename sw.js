@@ -1,4 +1,4 @@
-const CACHE='gg-manager-2026-11-16b';
+const CACHE='gg-manager-2026-11-16c';
 const SHELL=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'];
 
 self.addEventListener('install',e=>{
@@ -11,6 +11,12 @@ self.addEventListener('activate',e=>{
 self.addEventListener('fetch',e=>{
   const url=new URL(e.request.url);
   if(e.request.method!=='GET'||url.origin!==self.location.origin) return;
+  // The page itself: always try the network first so updates show up right away
+  if(e.request.mode==='navigate'||url.pathname.endsWith('/')||url.pathname.endsWith('index.html')){
+    e.respondWith(fetch(e.request,{cache:'no-store'}).then(res=>{ if(res&&res.ok){ const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); } return res; })
+      .catch(()=>caches.open(CACHE).then(c=>c.match(e.request,{ignoreSearch:true}).then(h=>h||c.match('index.html')))));
+    return;
+  }
   e.respondWith(
     caches.open(CACHE).then(c=>c.match(e.request,{ignoreSearch:true}).then(hit=>{
       const net=fetch(e.request).then(res=>{ if(res&&res.ok) c.put(e.request,res.clone()); return res; }).catch(()=>hit);

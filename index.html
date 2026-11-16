@@ -562,6 +562,8 @@ let invTimer=null, scanTimer=null;
 window.addEventListener('load',()=>{
   restoreInvCache();
   try{ activeMarket=JSON.parse(localStorage.getItem('gg_mkt')||'null'); renderMarketBadge(); }catch(e){}
+  // Never start with a payment method chosen, whatever the browser restored
+  setQPay(null); setPay(null); setMPay(null);
   renderQuick();
   loadInvCache();
   loadActiveMarket().then(()=>loadDash());
@@ -569,6 +571,7 @@ window.addEventListener('load',()=>{
   setInterval(()=>{ flushOutbox(); flushMisc(); },15000);
   setInterval(loadInvCache,5*60*1000);
   window.addEventListener('online',()=>{ flushOutbox(); flushMisc(); });
+  window.addEventListener('pageshow',e=>{ if(e.persisted){ setQPay(null); setPay(null); setMPay(null); } });
 });
 
 // ── API ─────────────────────────────────────────────────────────
