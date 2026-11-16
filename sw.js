@@ -1,4 +1,4 @@
-const CACHE='gg-manager-2026-11-16d';
+const CACHE='gg-manager-2026-11-16e';
 const SHELL=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'];
 
 self.addEventListener('install',e=>{
