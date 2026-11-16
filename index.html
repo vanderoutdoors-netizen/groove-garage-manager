@@ -152,6 +152,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bm);box-
 .pay-row{display:flex;gap:6px;margin-bottom:10px;}
 .pay-opt{flex:1;padding:9px 3px;border:2px solid var(--br);border-radius:8px;text-align:center;font-weight:700;font-size:.82rem;cursor:pointer;color:var(--t2);transition:all .15s;}
 .pay-opt.sel{border-color:var(--bd);background:var(--bd);color:#fff;}
+.photo-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.photo-chip{font-size:.75rem;color:var(--ok);font-weight:700;}
+.ph-day{border-top:1px solid var(--br);padding:8px 0;}
+.ph-head{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:.85rem;margin-bottom:6px;}
+.ph-grid{display:flex;flex-wrap:wrap;gap:6px;}
+.ph-grid img{width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--br);}
 
 /* ── ALERTS ── */
 .alert{border-radius:8px;padding:10px 12px;font-size:.84rem;font-weight:600;margin-bottom:10px;display:none;}
@@ -320,19 +326,19 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bm);box-
     <div class="card-title">⚡ Quick Sale <span style="font-weight:400;font-size:.75rem;color:var(--t2);">identify CDs later</span></div>
     <div id="qRows"></div>
     <div class="pay-row" style="margin-top:10px;">
-      <div class="pay-opt sel" id="qp-Cash"  onclick="setQPay('Cash')">💵 Cash</div>
+      <div class="pay-opt" id="qp-Cash"  onclick="setQPay('Cash')">💵 Cash</div>
       <div class="pay-opt"     id="qp-Venmo" onclick="setQPay('Venmo')">📲 Venmo</div>
-      <div class="pay-opt"     id="qp-Card"  onclick="setQPay('Card')">💳 Card</div>
-      <div class="pay-opt"     id="qp-Whatnot" onclick="setQPay('Whatnot')">📺 Whatnot</div>
+      <div class="pay-opt" id="qp-Square" onclick="setQPay('Square')">🟦 Square</div>
     </div>
     <div class="cart-summary" style="display:flex;margin-top:10px;">
       <div class="cs-left"><div class="cs-lbl">Total</div><div class="cs-items" id="qDetail">Tap + for each CD</div></div>
       <div class="cs-total" id="qTotal" onclick="editTotal('quick')" style="cursor:pointer;">$0</div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-success" id="qSubmit" onclick="submitQuick()">✓ Log Quick Sale</button>
+      <button class="btn btn-success" id="qSubmit" onclick="submitQuick()" disabled>✓ Log Quick Sale</button>
       <button class="btn btn-ghost btn-sm" onclick="resetQuick()">Reset</button>
     </div>
+    <div class="photo-row"><button class="btn btn-ghost btn-sm" onclick="pickPhoto('q')">📷 Photo of sale</button><span id="photoChip-q" class="photo-chip"></span></div>
   </div>
 
   <div class="card">
@@ -384,10 +390,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bm);box-
   <div class="card">
     <div class="card-title">💳 Payment &amp; Event</div>
     <div class="pay-row">
-      <div class="pay-opt sel" id="py-Cash"  onclick="setPay('Cash')">💵 Cash</div>
+      <div class="pay-opt" id="py-Cash"  onclick="setPay('Cash')">💵 Cash</div>
       <div class="pay-opt"    id="py-Venmo"  onclick="setPay('Venmo')">📲 Venmo</div>
-      <div class="pay-opt"    id="py-Card"   onclick="setPay('Card')">💳 Card</div>
-      <div class="pay-opt"    id="py-Whatnot" onclick="setPay('Whatnot')">📺 Whatnot</div>
+      <div class="pay-opt" id="py-Square" onclick="setPay('Square')">🟦 Square</div>
     </div>
     <label>Event</label>
     <input type="text" id="saleEvent" placeholder="Auto-filled from active market"/>
@@ -397,7 +402,32 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bm);box-
       <button class="btn btn-success" id="submitBtn" onclick="submitSale()" disabled>✓ Complete Sale</button>
       <button class="btn btn-ghost btn-sm" onclick="clearCart()">🗑 Clear</button>
     </div>
+    <div class="photo-row"><button class="btn btn-ghost btn-sm" onclick="pickPhoto('c')">📷 Photo of sale</button><span id="photoChip-c" class="photo-chip"></span></div>
   </div>
+
+  <div class="card" id="miscCard">
+    <div class="card-title">🧾 Misc Sale <span style="font-weight:400;font-size:.75rem;color:var(--t2);">vinyl, gear, anything not in inventory</span></div>
+    <label>What was it?</label>
+    <input type="text" id="miscDesc" placeholder="e.g. Beatles Abbey Road vinyl" oninput="renderMisc()"/>
+    <div class="wn-row">
+      <div><label>Price $</label><input type="text" id="miscPrice" inputmode="decimal" placeholder="10" oninput="renderMisc()"/></div>
+      <div><label>Qty</label><input type="text" id="miscQty" inputmode="numeric" value="1" oninput="renderMisc()"/></div>
+    </div>
+    <div class="pay-row" style="margin-top:10px;">
+      <div class="pay-opt" id="mp-Cash"  onclick="setMPay('Cash')">💵 Cash</div>
+      <div class="pay-opt" id="mp-Venmo" onclick="setMPay('Venmo')">📲 Venmo</div>
+      <div class="pay-opt" id="mp-Square" onclick="setMPay('Square')">🟦 Square</div>
+    </div>
+    <button class="btn btn-success" id="miscSubmit" onclick="submitMisc()" disabled>✓ Log Misc Sale</button>
+    <div class="photo-row"><button class="btn btn-ghost btn-sm" onclick="pickPhoto('m')">📷 Photo of sale</button><span id="photoChip-m" class="photo-chip"></span></div>
+    <div id="miscStatus" style="font-size:.75rem;color:var(--t2);margin-top:6px;"></div>
+  </div>
+
+  <div class="card" id="photoCard">
+    <div class="card-title">📸 Sale Photos <span style="font-weight:400;font-size:.75rem;color:var(--t2);">saved on this phone</span></div>
+    <div id="photoList"><div class="empty-state">No photos yet</div></div>
+  </div>
+  <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoPicked(this)"/>
 
   <div class="card" id="wnCard">
     <div class="card-title">📺 Whatnot Entry <span style="font-weight:400;font-size:.75rem;color:var(--t2);">one CD at a time</span></div>
@@ -524,7 +554,7 @@ const APP_URL=(()=>{ try{ return localStorage.getItem('gg_app_url')||BUILTIN_APP
 const SCANNER_URL='https://vanderoutdoors-netizen.github.io/groove-garage-scanner/';
 
 // ── STATE ──────────────────────────────────────────────────────
-let cart=[], payMethod='Cash', activeMarket=null;
+let cart=[], payMethod=null, activeMarket=null;
 let currentView='event', dashData={}, annualData={};
 let invTimer=null, scanTimer=null;
 
@@ -535,10 +565,10 @@ window.addEventListener('load',()=>{
   renderQuick();
   loadInvCache();
   loadActiveMarket().then(()=>loadDash());
-  renderSync(); flushOutbox();
-  setInterval(flushOutbox,15000);
+  renderSync(); flushOutbox(); renderPhotos(); renderMisc(); flushMisc();
+  setInterval(()=>{ flushOutbox(); flushMisc(); },15000);
   setInterval(loadInvCache,5*60*1000);
-  window.addEventListener('online',flushOutbox);
+  window.addEventListener('online',()=>{ flushOutbox(); flushMisc(); });
 });
 
 // ── API ─────────────────────────────────────────────────────────
@@ -744,7 +774,7 @@ const Q_TYPES=[
   {k:'double',label:'Double',sub:'$8 · no bundle'},
   {k:'slim',label:'Slim case',sub:'$2 · no bundle'},
 ];
-let qCounts={single:0,double:0,slim:0}, qPay='Cash';
+let qCounts={single:0,double:0,slim:0}, qPay=null;
 function qList(){
   const l=[];
   for(let n=0;n<qCounts.single;n++) l.push({uid:'PENDING',kind:'single',doubleCD:'No'});
@@ -764,13 +794,17 @@ function renderQuick(){
     </div>`).join('');
   const l=qList(), pc=finalPriced(l,qTotalOv);
   document.getElementById('qTotal').textContent=fmt$(pc.total);
+  const qb=document.getElementById('qSubmit');
+  qb.disabled=!l.length||!qPay;
+  qb.textContent=!l.length?'✓ Log Quick Sale':(!qPay?'Pick Cash, Venmo or Square':'✓ Log '+qPay+' Sale · '+fmt$(pc.total));
   document.getElementById('qDetail').innerHTML=l.length?(l.length+' CD'+(l.length>1?'s':'')+(pc.groups?' · '+pc.groups+' bundle'+(pc.groups>1?'s':''):'')+(pc.adjusted?'<div class="adj-note">Adjusted from '+fmt$(pc.listTotal)+'</div>':'')):'Tap + for each CD · tap total to adjust';
 }
 function qAdj(k,d){ qCounts[k]=Math.max(0,qCounts[k]+d); qTotalOv=null; renderQuick(); }
-function setQPay(m){ qPay=m; ['Cash','Venmo','Card','Whatnot'].forEach(p=>document.getElementById('qp-'+p).classList.toggle('sel',p===m)); }
-function resetQuick(){ qCounts={single:0,double:0,slim:0}; qTotalOv=null; setQPay('Cash'); renderQuick(); }
+function setQPay(m){ qPay=m; ['Cash','Venmo','Square'].forEach(p=>document.getElementById('qp-'+p).classList.toggle('sel',p===m)); renderQuick(); }
+function resetQuick(){ qCounts={single:0,double:0,slim:0}; qTotalOv=null; qPhoto=null; setQPay(null); renderPhotoChip('q'); }
 function submitQuick(){
   const l=qList(); if(!l.length) return;
+  if(!qPay){ showAlert('saleAlert','Pick Cash, Venmo or Square before logging the sale.','error'); return; }
   const pc=finalPriced(l,qTotalOv);
   const ev=document.getElementById('saleEvent').value||(activeMarket?activeMarket.venueName:'');
   outbox.push({
@@ -781,6 +815,7 @@ function submitQuick(){
     notes: ['Quick sale',adjNote(pc)].filter(Boolean).join(' · '),
   });
   saveOutbox();
+  saveSalePhoto(qPhoto,{event:ev,total:pc.total,pay:qPay,count:l.length,kind:'Quick sale'});
   showAlert('saleAlert',`✅ ${l.length} CD${l.length>1?'s':''} · ${fmt$(pc.total)} · ${qPay}`,'success');
   resetQuick(); renderSync(); flushOutbox();
   window.scrollTo(0,0);
@@ -992,7 +1027,7 @@ function renderCart(){
 
   if(!cart.length){
     ci.innerHTML='<div class="empty-state">Cart empty — scan or search below</div>';
-    cs.style.display='none'; bt.style.display='none'; sb.disabled=true; return;
+    cs.style.display='none'; bt.style.display='none'; sb.disabled=true; sb.textContent='✓ Complete Sale'; return;
   }
 
   ci.innerHTML=cart.map((item,i)=>`
@@ -1023,7 +1058,8 @@ function renderCart(){
     bt.textContent='Add '+need+' more single CD'+(need!==1?'s':'')+' to unlock the 5-for-$20 bundle! (doubles don\'t count)';
   } else { bt.style.display='none'; }
 
-  sb.disabled=false;
+  sb.disabled=!payMethod;
+  sb.textContent=payMethod?'✓ Complete '+payMethod+' Sale · '+fmt$(total):'Pick Cash, Venmo or Square';
 }
 
 function removeItem(i){ cart.splice(i,1); cartTotalOv=null; renderCart(); }
@@ -1031,7 +1067,8 @@ function clearCart(){ cart=[]; cartTotalOv=null; renderCart(); document.getEleme
 
 function setPay(m){
   payMethod=m;
-  ['Cash','Venmo','Card','Whatnot'].forEach(p=>document.getElementById('py-'+p).classList.toggle('sel',p===m));
+  ['Cash','Venmo','Square'].forEach(p=>document.getElementById('py-'+p).classList.toggle('sel',p===m));
+  renderCart();
 }
 
 // ── SCAN ───────────────────────────────────────────────────────
@@ -1102,6 +1139,7 @@ function addFromHit(item){
 // ── SUBMIT SALE ────────────────────────────────────────────────
 async function submitSale(){
   if(!cart.length) return;
+  if(!payMethod){ showAlert('saleAlert','Pick Cash, Venmo or Square before completing the sale.','error'); return; }
   const pc=finalPriced(cart,cartTotalOv);
   const sale={
     clientSaleId:'CS-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
@@ -1112,14 +1150,146 @@ async function submitSale(){
     notes: [document.getElementById('saleNotes').value,adjNote(pc)].filter(Boolean).join(' · '),
   };
   outbox.push(sale); saveOutbox();
+  saveSalePhoto(cPhoto,{event:sale.event,total:pc.total,pay:payMethod,count:cart.length,kind:'Cart sale'});
   // Pull sold copies out of the local cache so they can't be scanned twice
   pc.lines.forEach(l=>{ if(!invCache) return; const k=invCache.findIndex(r=>r.uid===l.uid); if(k>-1) invCache.splice(k,1); });
   if(invCache) saveInvCache();
   showAlert('saleAlert',`✅ ${cart.length} CD${cart.length>1?'s':''} · ${fmt$(pc.total)} · ${payMethod}`,'success');
-  clearCart();
+  clearCart(); cPhoto=null; renderPhotoChip('c'); setPay(null);
   document.getElementById('saleNotes').value='';
   renderSync();
   flushOutbox();
+}
+
+// ── SALE PHOTOS (kept on this phone, in IndexedDB) ─────────────
+let qPhoto=null, cPhoto=null, mPhoto=null, photoTarget=null;
+function pickPhoto(which){ photoTarget=which; const i=document.getElementById('photoInput'); i.value=''; i.click(); }
+async function onPhotoPicked(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  try{
+    const blob=await shrinkImage(f,1600,0.8);
+    if(photoTarget==='q') qPhoto=blob; else if(photoTarget==='c') cPhoto=blob; else mPhoto=blob;
+    renderPhotoChip(photoTarget);
+  }catch(e){ showAlert('saleAlert','Photo error: '+e,'error'); }
+}
+function renderPhotoChip(which){
+  const el=document.getElementById('photoChip-'+which); if(!el) return;
+  const has=which==='q'?qPhoto:which==='c'?cPhoto:mPhoto;
+  el.textContent=has?'✓ Photo attached':'';
+}
+function shrinkImage(file,max,q){
+  return new Promise((res,rej)=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const s=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas'); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      c.toBlob(b=>b?res(b):rej('could not compress'),'image/jpeg',q);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej('could not read image'); };
+    img.src=url;
+  });
+}
+function photoDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('gg_photos',1);
+    r.onupgradeneeded=()=>{ r.result.createObjectStore('photos',{keyPath:'id'}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function saveSalePhoto(blob,meta){
+  if(!blob) return;
+  try{
+    const db=await photoDB(), now=new Date();
+    const hh=String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+    const safe=s=>String(s||'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
+    const rec={id:'PH-'+now.getTime(), date:todayStr(), time:hh, blob,
+      event:meta.event||'', total:meta.total, pay:meta.pay, count:meta.count, kind:meta.kind, desc:meta.desc||'',
+      name:[todayStr(),hh,safe(meta.event)||'sale',safe(meta.pay),'$'+money(meta.total),meta.count+'items'].filter(Boolean).join('_')+'.jpg'};
+    await new Promise((res,rej)=>{ const t=db.transaction('photos','readwrite'); t.objectStore('photos').put(rec); t.oncomplete=res; t.onerror=()=>rej(t.error); });
+    renderPhotos();
+  }catch(e){ showAlert('saleAlert','Sale saved, but the photo was not: '+e,'error'); }
+}
+async function allPhotos(){
+  const db=await photoDB();
+  return new Promise((res,rej)=>{ const r=db.transaction('photos').objectStore('photos').getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); });
+}
+async function renderPhotos(){
+  const el=document.getElementById('photoList'); if(!el) return;
+  let list=[]; try{ list=await allPhotos(); }catch(e){ el.innerHTML='<div class="empty-state">Photos unavailable on this browser</div>'; return; }
+  if(!list.length){ el.innerHTML='<div class="empty-state">No photos yet. Tap 📷 on a sale to attach one.</div>'; return; }
+  const byDay={}; list.forEach(p=>(byDay[p.date]=byDay[p.date]||[]).push(p));
+  el.innerHTML=Object.keys(byDay).sort().reverse().map(d=>{
+    const ps=byDay[d].sort((a,b)=>a.id<b.id?-1:1);
+    const tot=ps.reduce((a,p)=>a+(+p.total||0),0);
+    return `<div class="ph-day">
+      <div class="ph-head"><span>${esc(d)} · ${ps.length} photo${ps.length>1?'s':''} · ${fmt$(tot)}</span>
+        <span><button class="btn btn-primary btn-sm" onclick="sharePhotos('${d}')">Share</button>
+        <button class="btn btn-ghost btn-sm" onclick="deletePhotos('${d}')">🗑</button></span></div>
+      <div class="ph-grid">${ps.map(p=>`<img src="${URL.createObjectURL(p.blob)}" title="${esc(p.time+' · '+p.pay+' · $'+p.total)}"/>`).join('')}</div>
+    </div>`;}).join('');
+}
+async function sharePhotos(day){
+  const ps=(await allPhotos()).filter(p=>p.date===day);
+  const files=ps.map(p=>new File([p.blob],p.name,{type:'image/jpeg'}));
+  if(navigator.canShare&&navigator.canShare({files})){
+    try{ await navigator.share({files,title:'Groove Garage sales '+day}); return; }catch(e){ if(e.name==='AbortError') return; }
+  }
+  files.forEach(f=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; a.click(); });
+}
+async function deletePhotos(day){
+  if(!confirm('Delete the '+day+' sale photos from this phone?')) return;
+  const db=await photoDB(), ps=(await allPhotos()).filter(p=>p.date===day);
+  await new Promise(res=>{ const t=db.transaction('photos','readwrite'); ps.forEach(p=>t.objectStore('photos').delete(p.id)); t.oncomplete=res; });
+  renderPhotos();
+}
+
+// ── MISC SALE (not from inventory) ─────────────────────────────
+// Kept in its own queue so a misc sale can never hold up regular CD sales.
+const MISC_KEY='gg_misc_v1';
+let mPay=null, miscBox=(()=>{ try{ return JSON.parse(localStorage.getItem(MISC_KEY)||'[]'); }catch(e){ return []; } })(), miscFlushing=false, miscErr='';
+function saveMisc(){ try{ localStorage.setItem(MISC_KEY,JSON.stringify(miscBox)); }catch(e){} }
+function setMPay(m){ mPay=m; ['Cash','Venmo','Square'].forEach(p=>document.getElementById('mp-'+p).classList.toggle('sel',p===m)); renderMisc(); }
+function miscVals(){
+  const desc=document.getElementById('miscDesc').value.trim();
+  const price=parseFloat(String(document.getElementById('miscPrice').value).replace(/[^0-9.]/g,''));
+  const qty=Math.max(1,parseInt(document.getElementById('miscQty').value,10)||1);
+  return {desc,price,qty};
+}
+function renderMisc(){
+  const {desc,price,qty}=miscVals(), b=document.getElementById('miscSubmit');
+  const ok=desc&&price>0;
+  b.disabled=!ok||!mPay;
+  b.textContent=!ok?'✓ Log Misc Sale':(!mPay?'Pick Cash, Venmo or Square':'✓ Log '+mPay+' Sale · '+fmt$(price*qty));
+  const st=document.getElementById('miscStatus');
+  st.style.color=miscErr?'var(--er)':'var(--t2)';
+  st.textContent=miscBox.length?(miscBox.length+' misc sale'+(miscBox.length>1?'s':'')+' waiting to save'+(miscErr?' ('+miscErr+')':'…')):'';
+}
+function submitMisc(){
+  const {desc,price,qty}=miscVals();
+  if(!desc||!(price>0)){ showAlert('saleAlert','Enter what it was and the price.','error'); return; }
+  if(!mPay){ showAlert('saleAlert','Pick Cash, Venmo or Square before logging the sale.','error'); return; }
+  const ev=document.getElementById('saleEvent').value||(activeMarket?activeMarket.venueName:'');
+  miscBox.push({clientSaleId:'MS-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
+    description:desc, quantity:qty, salePrice:String(money(price)), event:ev, paymentMethod:mPay, saleDate:todayStr()});
+  saveMisc();
+  saveSalePhoto(mPhoto,{event:ev,total:price*qty,pay:mPay,count:qty,kind:'Misc sale',desc});
+  showAlert('saleAlert',`✅ Misc: ${desc} · ${fmt$(price*qty)} · ${mPay}`,'success');
+  document.getElementById('miscDesc').value=''; document.getElementById('miscPrice').value=''; document.getElementById('miscQty').value='1';
+  mPhoto=null; renderPhotoChip('m'); setMPay(null);
+  flushMisc(); window.scrollTo(0,0);
+}
+async function flushMisc(){
+  if(miscFlushing||!miscBox.length){ renderMisc(); return; }
+  miscFlushing=true;
+  try{
+    while(miscBox.length){
+      let r;
+      try{ r=await api('recordMiscSale',{data:miscBox[0]}); }catch(e){ miscErr='no connection'; break; }
+      if(r&&r.success){ miscBox.shift(); saveMisc(); miscErr=''; }
+      else { miscErr=(r&&r.error)?String(r.error).slice(0,60):'server error'; break; }
+    }
+  } finally { miscFlushing=false; renderMisc(); }
 }
 
 // ── OFFLINE-SAFE SALE QUEUE ────────────────────────────────────
